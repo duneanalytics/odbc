@@ -5,7 +5,9 @@
 package odbc
 
 import (
+	"context"
 	"database/sql/driver"
+	"errors"
 	"strings"
 	"unsafe"
 
@@ -71,4 +73,97 @@ func (c *Conn) newError(apiName string, handle interface{}) error {
 		c.bad = true
 	}
 	return err
+}
+
+// QueryContext implements the driver.QueryerContext interface.
+// As per the specifications, it honours the context timeout and
+// returns when the context is cancelled.
+// When the context is cancelled, it first cancels the statement,
+// then closes it, and returns an error.
+func (c *Conn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
+	// Prepare a query
+	os, err := c.PrepareODBCStmt(query)
+	if err != nil {
+		return nil, err
+	}
+
+	dargs, err := namedValueToValue(args)
+	if err != nil {
+		return nil, err
+	}
+
+	// Execute the statement
+	rowsChan := make(chan driver.Rows)
+	defer close(rowsChan)
+	errorChan := make(chan error)
+	defer close(errorChan)
+
+	if ctx.Err() != nil {
+		os.closeByStmt()
+		return nil, ctx.Err()
+	}
+
+	runQuery := func() {
+		err := os.Exec(dargs, c)
+		if err != nil {
+			errorChan <- err
+			return
+		}
+
+		err = os.BindColumns()
+		if err != nil {
+			errorChan <- err
+			return
+		}
+
+		os.usedByRows = true
+		rowsChan <- &Rows{os: os}
+
+		// At the end of the execution, we check if the context has been cancelled
+		// to ensure there's no race condition below (L144).
+		if ctx.Err() != nil {
+			errorChan <- err
+		}
+	}
+
+	go runQuery()
+
+	var finalErr error
+	var finalRes driver.Rows
+
+	select {
+	case <-ctx.Done():
+		err := os.Cancel()
+		if err != nil {
+			finalErr = err
+			break
+		}
+
+		// The statement has been cancelled, the query execution should eventually fail now.
+		// We wait for it in order to avoid having a dangling goroutine running in the background
+		<-errorChan
+		finalErr = ctx.Err()
+	case err := <-errorChan:
+		finalErr = err
+	case rows := <-rowsChan:
+		finalRes = rows
+	}
+
+	// Close the statement
+	os.closeByStmt()
+	os = nil
+
+	return finalRes, finalErr
+}
+
+// namedValueToValue is a utility function that converts a driver.NamedValue into a driver.Value.
+func namedValueToValue(named []driver.NamedValue) ([]driver.Value, error) {
+	dargs := make([]driver.Value, len(named))
+	for n, param := range named {
+		if len(param.Name) > 0 {
+			return nil, errors.New("sql: driver does not support the use of Named Parameters")
+		}
+		dargs[n] = param.Value
+	}
+	return dargs, nil
 }

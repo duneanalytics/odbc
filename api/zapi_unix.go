@@ -124,3 +124,8 @@ func SQLSetConnectAttr(connectionHandle SQLHDBC, attribute SQLINTEGER, valuePtr 
 	r := C.SQLSetConnectAttrW(C.SQLHDBC(connectionHandle), C.SQLINTEGER(attribute), C.SQLPOINTER(valuePtr), C.SQLINTEGER(stringLength))
 	return SQLRETURN(r)
 }
+
+func SQLCancel(statementHandle SQLHSTMT) (ret SQLRETURN) {
+	r := C.SQLCancel(C.SQLHSTMT(statementHandle))
+	return SQLRETURN(r)
+}
