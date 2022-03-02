@@ -103,38 +103,15 @@ func (c *Conn) QueryContext(ctx context.Context, query string, args []driver.Nam
 		return nil, ctx.Err()
 	}
 
-	runQuery := func() {
-		err := os.Exec(dargs, c)
-		if err != nil {
-			errorChan <- err
-			return
-		}
-
-		err = os.BindColumns()
-		if err != nil {
-			errorChan <- err
-			return
-		}
-
-		os.usedByRows = true
-		rowsChan <- &Rows{os: os}
-
-		// At the end of the execution, we check if the context has been cancelled
-		// to ensure there's no race condition below (L144).
-		if ctx.Err() != nil {
-			errorChan <- err
-		}
-	}
-
-	go runQuery()
+	go c.wrapQuery(ctx, os, dargs, rowsChan, errorChan)
 
 	var finalErr error
 	var finalRes driver.Rows
 
 	select {
 	case <-ctx.Done():
-		err := os.Cancel()
-		if err != nil {
+		// Context has been cancelled or has expired, cancel the statement
+		if err := os.Cancel(); err != nil {
 			finalErr = err
 			break
 		}
@@ -154,6 +131,29 @@ func (c *Conn) QueryContext(ctx context.Context, query string, args []driver.Nam
 	os = nil
 
 	return finalRes, finalErr
+}
+
+// wrapQuery is following the same logic as `stmt.Query()` except that we don't use a lock
+// because the ODBC statement doesn't get exposed externally.
+func (c *Conn) wrapQuery(ctx context.Context, os *ODBCStmt, dargs []driver.Value, rowsChan chan<- driver.Rows, errorChan chan<- error) {
+	if err := os.Exec(dargs, c); err != nil {
+		errorChan <- err
+		return
+	}
+
+	if err := os.BindColumns(); err != nil {
+		errorChan <- err
+		return
+	}
+
+	os.usedByRows = true
+	rowsChan <- &Rows{os: os}
+
+	// At the end of the execution, we check if the context has been cancelled
+	// to ensure the caller doesn't end up waiting for a message indefinitely (L121)
+	if ctx.Err() != nil {
+		errorChan <- ctx.Err()
+	}
 }
 
 // namedValueToValue is a utility function that converts a driver.NamedValue into a driver.Value.
