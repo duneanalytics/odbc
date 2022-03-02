@@ -157,6 +157,8 @@ func (c *Conn) QueryContext(ctx context.Context, query string, args []driver.Nam
 }
 
 // namedValueToValue is a utility function that converts a driver.NamedValue into a driver.Value.
+// Source:
+// https://github.com/golang/go/blob/03ac39ce5e6af4c4bca58b54d5b160a154b7aa0e/src/database/sql/ctxutil.go#L137-L146
 func namedValueToValue(named []driver.NamedValue) ([]driver.Value, error) {
 	dargs := make([]driver.Value, len(named))
 	for n, param := range named {
