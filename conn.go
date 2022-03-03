@@ -76,10 +76,8 @@ func (c *Conn) newError(apiName string, handle interface{}) error {
 }
 
 // QueryContext implements the driver.QueryerContext interface.
-// As per the specifications, it honours the context timeout and
-// returns when the context is cancelled.
-// When the context is cancelled, it first cancels the statement,
-// then closes it, and returns an error.
+// As per the specifications, it honours the context timeout and returns when the context is cancelled.
+// When the context is cancelled, it first cancels the statement, closes it, and then returns an error.
 func (c *Conn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
 	// Prepare a query
 	os, err := c.PrepareODBCStmt(query)
@@ -150,7 +148,7 @@ func (c *Conn) wrapQuery(ctx context.Context, os *ODBCStmt, dargs []driver.Value
 	rowsChan <- &Rows{os: os}
 
 	// At the end of the execution, we check if the context has been cancelled
-	// to ensure the caller doesn't end up waiting for a message indefinitely (L121)
+	// to ensure the caller doesn't end up waiting for a message indefinitely (L119)
 	if ctx.Err() != nil {
 		errorChan <- ctx.Err()
 	}

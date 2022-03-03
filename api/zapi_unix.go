@@ -35,6 +35,11 @@ func SQLBindParameter(statementHandle SQLHSTMT, parameterNumber SQLUSMALLINT, in
 	return SQLRETURN(r)
 }
 
+func SQLCancel(statementHandle SQLHSTMT) (ret SQLRETURN) {
+	r := C.SQLCancel(C.SQLHSTMT(statementHandle))
+	return SQLRETURN(r)
+}
+
 func SQLCloseCursor(statementHandle SQLHSTMT) (ret SQLRETURN) {
 	r := C.SQLCloseCursor(C.SQLHSTMT(statementHandle))
 	return SQLRETURN(r)
@@ -122,10 +127,5 @@ func SQLSetEnvAttr(environmentHandle SQLHENV, attribute SQLINTEGER, valuePtr SQL
 
 func SQLSetConnectAttr(connectionHandle SQLHDBC, attribute SQLINTEGER, valuePtr SQLPOINTER, stringLength SQLINTEGER) (ret SQLRETURN) {
 	r := C.SQLSetConnectAttrW(C.SQLHDBC(connectionHandle), C.SQLINTEGER(attribute), C.SQLPOINTER(valuePtr), C.SQLINTEGER(stringLength))
-	return SQLRETURN(r)
-}
-
-func SQLCancel(statementHandle SQLHSTMT) (ret SQLRETURN) {
-	r := C.SQLCancel(C.SQLHSTMT(statementHandle))
 	return SQLRETURN(r)
 }
