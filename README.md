@@ -5,11 +5,11 @@ credits go to the author(s) of this package_
 
 ## The reason for the fork
 
-We have troubles with the Spark `string` type and the `alexbrainman/odbc` package. We have created
+We have troubles with the Spark / Hive `string` type and the `alexbrainman/odbc` package. We have created
 an [issue](https://github.com/alexbrainman/odbc/issues/165) in the original repository explaining
 our issues in detail.
 
-In this fork, we modify some of the column binding operations to work more nicely with Spark.
+In this fork, we modify some of the column binding operations to work more nicely with Spark / Hive.
 
 We also implement the [`driver.QueryerContext`](https://pkg.go.dev/database/sql/driver#QueryerContext)
 which honours the context passed in, and returns when the context times out or gets cancelled.
