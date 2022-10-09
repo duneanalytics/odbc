@@ -99,8 +99,11 @@ func NewColumn(h api.SQLHSTMT, idx int) (Column, error) {
 	case api.SQL_VARCHAR:
 		// hack: set length to 0 to get non-bindable column for strings
 		return NewVariableWidthColumn(b, api.SQL_C_CHAR, 0)
-	case api.SQL_WCHAR, api.SQL_WVARCHAR:
+	case api.SQL_WCHAR:
 		return NewVariableWidthColumn(b, api.SQL_C_WCHAR, size)
+	case api.SQL_WVARCHAR:
+		// hack: set length to 0 to get non-bindable column for strings
+		return NewVariableWidthColumn(b, api.SQL_C_WCHAR, 0)
 	case api.SQL_BINARY, api.SQL_VARBINARY:
 		return NewVariableWidthColumn(b, api.SQL_C_BINARY, size)
 	case api.SQL_LONGVARCHAR:
